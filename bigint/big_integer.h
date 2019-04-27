@@ -12,14 +12,15 @@ struct big_integer {
 
     big_integer(int a);
 
-    explicit big_integer(std::vector<unsigned int> const &num, bool f);
+    explicit big_integer(std::vector<unsigned int> num, bool f);
 
     explicit big_integer(std::string const &str);
     big_integer(unsigned int a);
 
     ~big_integer();
 
-    big_integer &operator=(big_integer const &other);
+    big_integer &operator=(big_integer const& other);
+    big_integer &operator=(big_integer &&other);
 
     big_integer &operator+=(big_integer const &rhs); //
     big_integer &operator-=(big_integer const &rhs);//
@@ -56,7 +57,8 @@ struct big_integer {
     friend big_integer operator*(big_integer a, big_integer const &b);
     friend big_integer operator/(big_integer a, big_integer const &b);
 
-    friend big_integer bit_operation_generator(big_integer a, big_integer const &b, std::string const operation);
+    template <typename Operation>
+    friend big_integer bit_operation_generator(big_integer a, big_integer const& b, Operation operation);
     friend big_integer operator<<(big_integer a, int b);
     friend big_integer operator>>(big_integer a, int b);
 
@@ -75,7 +77,7 @@ private:
 };
 
 big_integer operator+(const big_integer& a, big_integer const& b);//
-big_integer operator-(big_integer a, big_integer const& b);//
+big_integer operator-(const big_integer& a, big_integer const& b);//
 big_integer operator*(big_integer a, big_integer const& b);//
 big_integer operator/(big_integer a, big_integer const& b);
 big_integer operator%(big_integer a, big_integer const& b);

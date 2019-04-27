@@ -45,10 +45,13 @@ big_integer::big_integer(std::string const& str) : big_integer() {
     }
 }
 
-big_integer::big_integer(std::vector<unsigned int> const& num, bool f) : digits(num), sign(f){
+big_integer::big_integer(std::vector<unsigned int> num, bool f) : digits(std::move(num)), sign(f){
     pop_first_zeros();
 }
-big_integer &big_integer::operator=(big_integer const &other) = default;
+
+big_integer &big_integer::operator=(big_integer const& other) = default;
+big_integer &big_integer::operator=(big_integer &&other) = default;
+
 big_integer::~big_integer() = default;
 
 //________________________________________________________
@@ -106,7 +109,7 @@ big_integer big_integer::operator~() const {
     for (size_t i = 0; i < digits.size(); i++) {
         ans[i] = ~digits[i];
     }
-    return big_integer(ans, !sign);
+    return big_integer(std::move(ans), !sign);
 }
 //________________________________________________________
 
@@ -141,10 +144,10 @@ big_integer operator+(const big_integer& a, big_integer const& b) {
     }
 
     bool sign = (ans.back() >> 31) > 0;
-    return big_integer(ans, sign);
+    return big_integer(std::move(ans), sign);
 }
 
-big_integer operator-(big_integer a, big_integer const& b) {
+big_integer operator-(big_integer const& a, big_integer const& b) {
     return a + (-b);
 }
 
@@ -164,7 +167,7 @@ big_integer operator*(big_integer a, big_integer const& b) {
         }
         ans[i + b.size()] += static_cast<unsigned int>(carry);
      }
-    big_integer ret(ans, PLUS);
+    big_integer ret(std::move(ans), PLUS);
     return (a.sign ^ b.sign ? -ret : ret);
 }
 
@@ -230,28 +233,50 @@ big_integer operator%(big_integer a, big_integer const& b) {
 
 //________________________________________________________
 
-template <typename T>
-T bit_operation(T a, T b, std::string const operation) {
-    if (operation == "and") return a & b;
-    if (operation == "or") return a | b;
-    return a ^ b;
-}
-big_integer bit_operation_generator(big_integer a, big_integer const& b, std::string const operation) {
+struct operation_and
+{
+    template <typename T>
+    T operator()(T a, T b) const
+    {
+        return a & b;
+    }
+};
+
+struct operation_or
+{
+    template <typename T>
+    T operator()(T a, T b) const
+    {
+        return a | b;
+    }
+};
+
+struct operation_xor
+{
+    template <typename T>
+    T operator()(T a, T b) const
+    {
+        return a ^ b;
+    }
+};
+
+template <typename Operation>
+big_integer bit_operation_generator(big_integer a, big_integer const& b, Operation operation) {
     size_t length = std::max(a.size(), b.size());
     std::vector<unsigned int> ans(length);
     for (size_t i = 0; i < length; i++) {
-        ans[i] = bit_operation(a.get_digit_or_max(i), b.get_digit_or_max(i), operation);
+        ans[i] = operation(a.get_digit_or_max(i), b.get_digit_or_max(i));
     }
-    return big_integer(ans, bit_operation(a.sign, b.sign, operation));
+    return big_integer(std::move(ans), operation(a.sign, b.sign));
 }
 big_integer operator&(big_integer a, big_integer const& b) {
-    return bit_operation_generator(a, b, "and");
+    return bit_operation_generator(a, b, operation_and());
 }
 big_integer operator|(big_integer a, big_integer const& b) {
-    return bit_operation_generator(a, b, "or");
+    return bit_operation_generator(a, b, operation_or());
 }
 big_integer operator^(big_integer a, big_integer const& b) {
-    return bit_operation_generator(a, b, "xor");
+    return bit_operation_generator(a, b, operation_xor());
 }
 //________________________________________________________
 
