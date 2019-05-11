@@ -1,3 +1,0 @@
-C:/Users/Erika/Documents/ITMO/1/c++/bigint/cmake-build-release/CMakeFiles/big_integer_testing.dir
-C:/Users/Erika/Documents/ITMO/1/c++/bigint/cmake-build-release/CMakeFiles/edit_cache.dir
-C:/Users/Erika/Documents/ITMO/1/c++/bigint/cmake-build-release/CMakeFiles/rebuild_cache.dir
