@@ -1,3 +1,5 @@
+#include <utility>
+
 #include "big_integer.h"
 #include <iostream>
 #include <cstdlib>
@@ -7,28 +9,32 @@
 #include <cmath>
 
 const bool PLUS = false;
-const bool MINUS = true;
 
 const size_t SIZE = 9;
-const unsigned int BLOCK = (int)1e9;
+const uint BLOCK = (int)1e9;
 
-const unsigned int ZERO_PLUS = 0;
-const unsigned int ZERO_MINUS = static_cast<const unsigned int>(std::numeric_limits<unsigned int>::max());
+const uint ZERO_PLUS = 0;
+const uint ZERO_MINUS = static_cast<const uint>(std::numeric_limits<uint>::max());
 
-const unsigned int MAX = UINT32_MAX;
-const size_t SIZEOF_INT = static_cast<const size_t>(std::numeric_limits<unsigned int>::digits);
+const uint MAX = UINT32_MAX;
+const size_t SIZEOF_INT = static_cast<const size_t>(std::numeric_limits<uint>::digits);
 //________________________________________________________
 
 big_integer::big_integer() : digits(1, 0), sign(PLUS) {}
 big_integer::big_integer(int a) : digits(1, a), sign(a < 0) {}
-big_integer::big_integer(big_integer const& other) = default;
-big_integer::big_integer(unsigned int a) : digits(1, a), sign(PLUS) {}
+
+big_integer::big_integer(big_integer const& other) {
+    digits = other.digits;
+    sign = other.sign;
+}
+
+big_integer::big_integer(uint a) : digits(1, a), sign(PLUS) {}
 
 big_integer::big_integer(std::string const& str) : big_integer() {
     bool this_sign = str[0] == '-';
     size_t i = (this_sign ? 1 : 0);
     for (; i < str.size(); i += SIZE) {
-        unsigned int cur_size = std::min<unsigned int>(SIZE, str.size() - i);
+        uint cur_size = std::min<uint>(SIZE, str.size() - i);
         std::string rest = str.substr(i, cur_size);
         if (i + SIZE > str.size()) {
             int pow10 = 1;
@@ -37,7 +43,7 @@ big_integer::big_integer(std::string const& str) : big_integer() {
         } else {
             *this *= BLOCK;
         }
-        *this += static_cast<unsigned int>(std::stoul(rest));
+        *this += static_cast<uint>(std::stoul(rest));
     }
     pop_first_zeros();
     if (this_sign) {
@@ -45,10 +51,20 @@ big_integer::big_integer(std::string const& str) : big_integer() {
     }
 }
 
-big_integer::big_integer(std::vector<unsigned int> const& num, bool f) : digits(num), sign(f){
+big_integer::big_integer(const bigint_vector& num, bool f) {
+    digits = num;
+    sign = f;
     pop_first_zeros();
 }
-big_integer &big_integer::operator=(big_integer const &other) = default;
+
+big_integer &big_integer::operator=(big_integer const& other) {
+    digits = other.digits;
+    sign = other.sign;
+    return *this;
+}
+
+big_integer &big_integer::operator=(big_integer &&other) = default;
+
 big_integer::~big_integer() = default;
 
 //________________________________________________________
@@ -102,9 +118,11 @@ big_integer big_integer::operator+() const {
     return *this;
 }
 big_integer big_integer::operator~() const {
-    std::vector<unsigned int> ans(digits.size());
+    bigint_vector ans(digits.size());
+    uint* ans_data = ans.data();
+    const uint* digits_data = digits.data();
     for (size_t i = 0; i < digits.size(); i++) {
-        ans[i] = ~digits[i];
+        ans_data[i] = ~digits_data[i];
     }
     return big_integer(ans, !sign);
 }
@@ -114,7 +132,7 @@ big_integer &big_integer::operator++() {
     *this += 1;
     return *this;
 }
-big_integer big_integer::operator++(int a) {
+const big_integer big_integer::operator++(int a) {
     *this += 1;
     return *this;
 }
@@ -122,73 +140,90 @@ big_integer &big_integer::operator--() {
     *this -= 1;
     return *this;
 }
-big_integer big_integer::operator--(int a) {
+const big_integer big_integer::operator--(int a) {
     *this -= 1;
     return *this;
 }
 //________________________________________________________
 
 big_integer operator+(const big_integer& a, big_integer const& b) {
-    unsigned long long carry = 0;
+    ull carry = 0;
     size_t length = std::max(a.size(), b.size()) + 1;
 
-    std::vector<unsigned int> ans(length + 1);
+    bigint_vector ans(length + 1);
+
+    const uint* a_data = a.digits.data();
+    const uint* b_data = b.digits.data();
+    uint* ans_data = ans.data();
+
+    uint a_max = a.sign ? MAX : 0;
+    uint b_max = b.sign ? MAX : 0;
 
     for (size_t i = 0; i <= length; i++) {
-        unsigned long long new_carry = carry + a.get_digit_or_max(i) + b.get_digit_or_max(i);
+        ull new_carry = carry + (i < a.size() ? a_data[i] : a_max) + (i < b.size() ? b_data[i] : b_max);
         carry = new_carry > MAX;
-        ans[i] = static_cast<unsigned int>(new_carry);
+        ans_data[i] = static_cast<uint>(new_carry);
     }
 
-    bool sign = (ans.back() >> 31) > 0;
+    bool sign = (ans_data[length] >> 31) > 0;
     return big_integer(ans, sign);
 }
 
-big_integer operator-(big_integer a, big_integer const& b) {
+big_integer operator-(big_integer const& a, big_integer const& b) {
     return a + (-b);
 }
 
-big_integer operator*(big_integer a, big_integer const& b) {
-    std::vector<unsigned int> ans(a.size() + b.size());
+big_integer operator*(const big_integer& a, big_integer const& b) {
+    bigint_vector ans(a.size() + b.size());
     big_integer positive_a = a.abs();
     big_integer positive_b = b.abs();
 
+    const uint* positive_a_data = positive_a.digits.data();
+    const uint* positive_b_data = positive_b.digits.data();
+    uint* ans_data = ans.data();
+
     for (size_t i = 0; i < a.size(); i++) {
-        unsigned long long carry = 0;
+        ull carry = 0;
         for (size_t j = 0; j < b.size(); j++) {
             size_t ind = i + j;
-            carry += static_cast<unsigned long long>(ans[ind]) +
-                    static_cast<unsigned long long>(positive_a.get_digit(i)) * static_cast<unsigned long long>(positive_b.get_digit(j));
-            ans[ind] = static_cast<unsigned int>(carry & MAX);
+            carry += static_cast<ull>(ans_data[ind]) +
+                     static_cast<ull>(positive_a_data[i]) * static_cast<ull>(positive_b_data[j]);
+            ans_data[ind] = static_cast<uint>(carry & MAX);
             carry >>= 32;
         }
-        ans[i + b.size()] += static_cast<unsigned int>(carry);
+        ans[i + b.size()] += static_cast<uint>(carry);
      }
     big_integer ret(ans, PLUS);
     return (a.sign ^ b.sign ? -ret : ret);
 }
 
-big_integer operator/(big_integer a, big_integer const& b) {
+big_integer operator/(const big_integer& a, big_integer const& b) {
     if (b == 0) throw std::runtime_error("Division by zero");
     big_integer positive_a = a.abs();
     big_integer positive_b = b.abs();
     if (positive_a < positive_b) return 0;
 
-    big_integer ans;
-    ans.digits.resize(positive_a.size());
 
     if (positive_b.digits.back() < MAX / 2) {
-        positive_a *= MAX / (positive_b.digits.back() + 1);
-        positive_b *= MAX / (positive_b.digits.back() + 1);
+        positive_a = positive_a * (MAX / (positive_b.digits.back() + 1));
+        positive_b = positive_b * (MAX / (positive_b.digits.back() + 1));
     }
 
-    big_integer res;
-    for (size_t i = positive_a.size(); i > 0; i--) {
-        res = (res << SIZEOF_INT) | positive_a.get_digit(i - 1);
-        res.pop_first_zeros();
+    big_integer res, un;
+
+
+    const uint* positive_a_data = positive_a.digits.data();
+    uint divisor = positive_b.digits.back();
+
+    big_integer ans;
+    ans.digits.resize(positive_a.size());
+    uint* ans_data = ans.digits.data();
+
+    for (size_t i = positive_a.size(), ind = 0; i > 0; i--, ind++) {
+        res = (res << SIZEOF_INT) | positive_a_data[i - 1];
 
         if (res.size() < positive_b.size()) {
-            ans.digits.push_back(0);
+            ans_data[ind] = 0;
             continue;
         }
 
@@ -196,62 +231,79 @@ big_integer operator/(big_integer a, big_integer const& b) {
             res.digits.push_back(0);
         }
 
-        unsigned long long cur = res.digits.back();
-        unsigned long long prev = res.get_digit(res.size() - 2);
+        ull cur = res.digits.back();
+        ull prev = res.get_digit(res.size() - 2);
         cur = (cur << SIZEOF_INT) | prev;
-        cur /= static_cast<unsigned long long>(positive_b.digits.back());
+        cur /= static_cast<ull>(divisor);
 
-        big_integer un;
-        un.digits.resize(2);
-        un.digits[0] = static_cast<unsigned int>(cur);
-        un.digits[1] = static_cast<unsigned int>(cur >> SIZEOF_INT);
-
-        un *= positive_b;
+        un = positive_b * static_cast<uint>(cur > MAX ? MAX : cur);
 
         while (cur > 0 && un > res) {
             cur--;
             un -= positive_b;
         }
 
-        ans.digits.push_back(static_cast<unsigned int>(cur));
+        ans_data[ind] = cur;
         res -= un;
 
     }
-    std::reverse(ans.digits.begin(), ans.digits.end());
+    ans.digits.reverse();
     ans.pop_first_zeros();
 
     if (a.sign ^ b.sign) ans.invert_sign();
     return ans;
 }
 
-big_integer operator%(big_integer a, big_integer const& b) {
+big_integer operator%(const big_integer& a, big_integer const& b) {
     return a - a / b * b;
 }
 
 //________________________________________________________
 
-template <typename T>
-T bit_operation(T a, T b, std::string const operation) {
-    if (operation == "and") return a & b;
-    if (operation == "or") return a | b;
-    return a ^ b;
-}
-big_integer bit_operation_generator(big_integer a, big_integer const& b, std::string const operation) {
-    size_t length = std::max(a.size(), b.size());
-    std::vector<unsigned int> ans(length);
-    for (size_t i = 0; i < length; i++) {
-        ans[i] = bit_operation(a.get_digit_or_max(i), b.get_digit_or_max(i), operation);
+struct operation_and
+{
+    template <typename T>
+    T operator()(T a, T b) const
+    {
+        return a & b;
     }
-    return big_integer(ans, bit_operation(a.sign, b.sign, operation));
+};
+
+struct operation_or
+{
+    template <typename T>
+    T operator()(T a, T b) const
+    {
+        return a | b;
+    }
+};
+
+struct operation_xor
+{
+    template <typename T>
+    T operator()(T a, T b) const
+    {
+        return a ^ b;
+    }
+};
+
+template <typename Operation>
+big_integer bit_operation_generator(const big_integer& a, big_integer const& b, Operation operation) {
+    size_t length = std::max(a.size(), b.size());
+    bigint_vector ans(length);
+    for (size_t i = 0; i < length; i++) {
+        ans[i] = operation(a.get_digit_or_max(i), b.get_digit_or_max(i));
+    }
+    return big_integer(ans, operation(a.sign, b.sign));
 }
-big_integer operator&(big_integer a, big_integer const& b) {
-    return bit_operation_generator(a, b, "and");
+big_integer operator&(const big_integer& a, big_integer const& b) {
+    return bit_operation_generator(a, b, operation_and());
 }
-big_integer operator|(big_integer a, big_integer const& b) {
-    return bit_operation_generator(a, b, "or");
+big_integer operator|(const big_integer& a, big_integer const& b) {
+    return bit_operation_generator(a, b, operation_or());
 }
-big_integer operator^(big_integer a, big_integer const& b) {
-    return bit_operation_generator(a, b, "xor");
+big_integer operator^(const big_integer& a, big_integer const& b) {
+    return bit_operation_generator(a, b, operation_xor());
 }
 //________________________________________________________
 
@@ -260,8 +312,8 @@ big_integer operator<<(big_integer a, int b) {
     int cnt = b / 32;
     if (cnt) a.shift(cnt);
 
-    unsigned int big_shift = b % 32;
-    unsigned int small_shift = 32 - big_shift;
+    uint big_shift = b % 32;
+    uint small_shift = 32 - big_shift;
     if (big_shift) {
         a.digits.push_back(a.zero());
         for (size_t i = a.size(); i > 0; i--) {
@@ -279,10 +331,10 @@ big_integer operator>>(big_integer a, int b) {
     int cnt = b / 32;
     if (cnt) a.shift(-cnt);
 
-    unsigned int big_shift = b % 32;
-    unsigned int small_shift = 32 - big_shift;
+    uint big_shift = b % 32;
+    uint small_shift = 32 - big_shift;
     if (big_shift) {
-        unsigned int cur = a.zero();
+        uint cur = a.zero();
         for (size_t i = 0; i < a.size(); i++) {
             if (i > 0) {
                 a.digits[i - 1] += a.get_digit(i) << small_shift;
@@ -297,9 +349,9 @@ big_integer operator>>(big_integer a, int b) {
 
 void big_integer::shift(int rhs) {
     if (rhs > 0) {
-        digits.insert(digits.begin(), rhs, 0);
+        digits.insert_begin(rhs);
     } else {
-        digits.erase(digits.begin(), digits.begin() - rhs);
+        digits.erase_begin(-rhs);
     }
 }
 //________________________________________________________
@@ -329,6 +381,36 @@ bool operator<=(big_integer const& a, big_integer const& b) {
 bool operator>=(big_integer const& a, big_integer const& b) {
     return (a > b || a == b);
 }
+
+//________________________________________________________
+big_integer operator|(big_integer const& a, uint b) {
+    auto res = a;
+    res.digits[0] |= b;
+    return res;
+}
+
+big_integer operator*(big_integer const& a, uint b) {
+    auto res = a;
+    if (a.sign) {
+        res = -res;
+    }
+    res.digits.push_back(0);
+
+    uint* res_data = res.digits.data();
+
+    ull cur = 0;
+    for (size_t i = 0; i < res.size(); i++) {
+        cur += (ull)res_data[i] * b;
+        res_data[i] = cur & MAX;
+        cur >>= SIZEOF_INT;
+    }
+    if (a.sign) {
+        res = -res;
+    }
+    res.pop_first_zeros();
+    return res;
+}
+
 //________________________________________________________
 
 std::string to_string(big_integer const& a) {
@@ -337,7 +419,7 @@ std::string to_string(big_integer const& a) {
     big_integer positive_a = a.abs();
     while (positive_a != 0) {
         big_integer digit = positive_a % mod;
-        unsigned int new_digit = digit.get_digit_or_max(0);
+        uint new_digit = digit.get_digit_or_max(0);
         positive_a /= mod;
         for (size_t i = 0; i < 9; i++) {
             ans += '0' + new_digit % 10;
@@ -368,7 +450,7 @@ size_t big_integer::size() const {
     return digits.size();
 }
 
-unsigned int big_integer::zero() const {
+uint big_integer::zero() const {
     return (!sign ? ZERO_PLUS : ZERO_MINUS);
 }
 
@@ -381,11 +463,11 @@ void big_integer::invert_sign() {
     pop_first_zeros();
 }
 
-unsigned int big_integer::get_digit(size_t i) const {
+uint big_integer::get_digit(size_t i) const {
     return digits[i];
 }
 
-unsigned int big_integer::get_digit_or_max(size_t i) const {
+uint big_integer::get_digit_or_max(size_t i) const {
     if (i >= digits.size()) {
         return (sign ? MAX : 0);
     } else {
