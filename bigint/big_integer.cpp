@@ -34,7 +34,7 @@ big_integer::big_integer(std::string const& str) : big_integer() {
     bool this_sign = str[0] == '-';
     size_t i = (this_sign ? 1 : 0);
     for (; i < str.size(); i += SIZE) {
-        uint cur_size = std::min<uint>(SIZE, str.size() - i);
+        size_t cur_size = std::min<size_t>(SIZE, str.size() - i);
         std::string rest = str.substr(i, cur_size);
         if (i + SIZE > str.size()) {
             int pow10 = 1;
@@ -203,15 +203,13 @@ big_integer operator/(const big_integer& a, big_integer const& b) {
     big_integer positive_b = b.abs();
     if (positive_a < positive_b) return 0;
 
-
     if (positive_b.digits.back() < MAX / 2) {
         positive_a = positive_a * (MAX / (positive_b.digits.back() + 1));
         positive_b = positive_b * (MAX / (positive_b.digits.back() + 1));
     }
 
     big_integer res, un;
-
-
+    
     const uint* positive_a_data = positive_a.digits.data();
     uint divisor = positive_b.digits.back();
 
@@ -220,7 +218,8 @@ big_integer operator/(const big_integer& a, big_integer const& b) {
     uint* ans_data = ans.digits.data();
 
     for (size_t i = positive_a.size(), ind = 0; i > 0; i--, ind++) {
-        res = (res << SIZEOF_INT) | positive_a_data[i - 1];
+        res = (res << SIZEOF_INT);
+        res.digits[0] |= positive_a_data[i - 1];
 
         if (res.size() < positive_b.size()) {
             ans_data[ind] = 0;
@@ -260,29 +259,23 @@ big_integer operator%(const big_integer& a, big_integer const& b) {
 
 //________________________________________________________
 
-struct operation_and
-{
+struct operation_and {
     template <typename T>
-    T operator()(T a, T b) const
-    {
+    T operator()(T a, T b) const {
         return a & b;
     }
 };
 
-struct operation_or
-{
+struct operation_or {
     template <typename T>
-    T operator()(T a, T b) const
-    {
+    T operator()(T a, T b) const {
         return a | b;
     }
 };
 
-struct operation_xor
-{
+struct operation_xor {
     template <typename T>
-    T operator()(T a, T b) const
-    {
+    T operator()(T a, T b) const {
         return a ^ b;
     }
 };
@@ -432,10 +425,6 @@ std::string to_string(big_integer const& a) {
     if (a.sign) ans += "-";
     std::reverse(ans.begin(), ans.end());
     return ans;
-}
-
-std::ostream& operator<<(std::ostream& s, big_integer const& a) {
-    return s << to_string(a);
 }
 
 //________________________________________________________

@@ -1,7 +1,3 @@
-//
-// Created by roman on 24.05.2019.
-//
-
 #include "bigint_vector.h"
 #include <memory>
 #include <algorithm>
@@ -22,7 +18,7 @@ uint bigint_vector::size() const {
 
 bigint_vector::bigint_vector(int curlen) {
     if (curlen > 1) {
-        new (&elements) std::shared_ptr<std::vector<uint>>(new std::vector<uint>(curlen));
+        elements = std::make_shared<std::vector<uint>>(curlen);
     }
     len = curlen;
 }

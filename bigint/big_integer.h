@@ -119,6 +119,4 @@ big_integer operator|(const big_integer &a, uint b);
 big_integer operator*(const big_integer &a, uint b);
 
 std::string to_string(big_integer const &a);//
-std::ostream &operator<<(std::ostream &s, big_integer const &a);//
-
 #endif // BIG_INTEGER_H

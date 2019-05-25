@@ -1,7 +1,3 @@
-//
-// Created by roman on 24.05.2019.
-//
-
 #ifndef BIGINT_BIGINT_VECTOR_H
 #define BIGINT_BIGINT_VECTOR_H
 
@@ -54,10 +50,9 @@ public:
 private:
     size_t len;
 
-    //union{
     uint element;
     std::shared_ptr<std::vector<uint>> elements;
-    //};
+
     bool small() const;
 
     void unique();
