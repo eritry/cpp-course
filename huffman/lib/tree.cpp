@@ -41,8 +41,16 @@ tree::tree(std::vector<std::pair<uchar, ull>> &bin) {
     }
 }
 
+void tree::del() {
+    node *prev = cur;
+    if (cur->r) cur = cur->r, del(), cur = prev;
+    if (cur->l) cur = cur->l, del(), cur = prev;
+    delete cur;
+}
+
 tree::~tree() {
-    delete[] root;
+    cur = root;
+    del();
 }
 
 bool tree::go(uint c) {
