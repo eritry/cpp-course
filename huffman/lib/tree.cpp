@@ -10,6 +10,7 @@ struct tree::node {
     node *r = nullptr;
 
     node() = default;
+
     explicit node(uchar _data, node *_l = nullptr, node *_r = nullptr) {
         data = _data, l = _l, r = _r;
     }
@@ -38,6 +39,10 @@ tree::tree(std::vector<std::pair<uchar, ull>> &bin) {
         }
         cur->data = (uchar)i;
     }
+}
+
+tree::~tree() {
+    delete[] root;
 }
 
 bool tree::go(uint c) {

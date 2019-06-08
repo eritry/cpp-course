@@ -16,7 +16,7 @@ typedef unsigned char uchar;
 class tree {
 public:
     tree() = default;
-    ~tree() = default;
+    ~tree();
     explicit tree(std::vector<std::pair<uchar, ull>> &table);
     void to_root();
     bool go(uint c);
