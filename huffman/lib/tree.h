@@ -24,6 +24,7 @@ public:
     uchar get();
 
 private:
+    void del();
     struct node;
     node *root = nullptr;
     node *cur = nullptr;
