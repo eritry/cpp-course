@@ -36,7 +36,8 @@ void huffman::count_in(std::istream &in, std::vector<ull> &table) {
 }
 
 bool huffman::count_out(std::istream &in, std::vector<ull> &table) {
-    uint cnt;
+    uint cnt = 0;
+    if (!in) return false;
     in.read((char *)(&cnt), sizeof cnt);
     for (uint i = 0; i < cnt; i++) {
         uchar letter;
@@ -155,12 +156,15 @@ bool huffman::decompress(std::istream &in, std::ostream &out) {
     std::vector<ull> table(257, 0);
 
     in.seekg(std::istream::beg);
+    if (!in) return false;
     in.read((char*)&stream, sizeof stream);
 
     if (!count_out(in, table)) return false;
     std::vector<std::pair<uchar, ull>> bin = huffman::build(table);
 
     tree bor(bin);
+
+    if (!in) return false;
     long long len = in.readsome((char*)in_buffer, size);
     bor.to_root();
     while (len > 0) {
@@ -178,6 +182,7 @@ bool huffman::decompress(std::istream &in, std::ostream &out) {
             if (stream >= 8) stream = stream - 8;
             else stream = 0;
         }
+        if (!in) return false;
         len = in.readsome((char*)in_buffer, size);
     }
 
