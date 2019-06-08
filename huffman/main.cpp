@@ -17,8 +17,9 @@ int main(int argc, char *argv[]) {
 
     std::ifstream in(from, std::ifstream::binary);
     std::ofstream out(to, std::ofstream::binary);
-
+	
     if (in.is_open() && out.is_open()) {
+        if (!in.eof()) std::cout << "Couldn't read from file " + from + ".\n", exit(0);
         if (flag == "-c") {
             huffman::compress(in, out);
         } else if (flag == "-d") {
